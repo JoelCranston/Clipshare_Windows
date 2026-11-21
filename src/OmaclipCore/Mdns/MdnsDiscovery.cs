@@ -127,22 +127,36 @@ public sealed class MdnsDiscovery : IDisposable
     private void RefreshInterfaces()
     {
         var current = new List<LocalAddress>();
-        try
+        NetworkInterface[] interfaces;
+        try { interfaces = NetworkInterface.GetAllNetworkInterfaces(); }
+        catch (NetworkInformationException) { interfaces = []; }
+        foreach (var nic in interfaces)
         {
-            foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
+            // Each adapter on its own: on Windows, GetIPv4Properties throws for adapters without IPv4
+            // (IPv6-only tunnels, some VPNs), and one such adapter must not hide all the others.
+            try
             {
                 if (nic.OperationalStatus != OperationalStatus.Up || nic.NetworkInterfaceType == NetworkInterfaceType.Loopback ||
                     !nic.SupportsMulticast) continue;
                 var properties = nic.GetIPProperties();
+                var addresses = properties.UnicastAddresses
+                    .Where(u => u.Address.AddressFamily == AddressFamily.InterNetwork && IPv4.IsAdvertisable(u.Address))
+                    .ToList();
+                if (addresses.Count == 0) continue;
                 var index = properties.GetIPv4Properties()?.Index ?? -1;
-                foreach (var unicast in properties.UnicastAddresses)
+                foreach (var unicast in addresses)
                 {
-                    if (unicast.Address.AddressFamily != AddressFamily.InterNetwork || !IPv4.IsAdvertisable(unicast.Address)) continue;
-                    current.Add(new LocalAddress(index, unicast.Address, unicast.IPv4Mask ?? IPAddress.Parse("255.255.255.0")));
+                    IPAddress mask;
+                    try { mask = unicast.IPv4Mask; }
+                    catch (Exception ex) when (ex is NetworkInformationException or PlatformNotSupportedException) { mask = IPAddress.Any; }
+                    if (mask.Equals(IPAddress.Any)) mask = IPAddress.Parse("255.255.255.0");
+                    current.Add(new LocalAddress(index, unicast.Address, mask));
                 }
             }
+            catch (Exception ex) when (ex is NetworkInformationException or PlatformNotSupportedException)
+            {
+            }
         }
-        catch (NetworkInformationException) { }
 
         lock (gate)
         {
