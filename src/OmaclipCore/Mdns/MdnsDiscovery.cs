@@ -19,7 +19,12 @@ public sealed class MdnsDiscovery : IDisposable
     private const uint Ttl = 120;
     private static readonly IPAddress Group = IPAddress.Parse("224.0.0.251");
     private static readonly IPEndPoint GroupEndPoint = new(Group, MdnsPort);
-    private static readonly TimeSpan BrowseInterval = TimeSpan.FromSeconds(5);
+    /// <summary>
+    /// How often we query for peers and re-announce ourselves. omaclip drops a peer it hasn't heard from
+    /// in three of its 2-second browse cycles, so announcing this often keeps us listed even when a
+    /// firewall stops omaclip's queries from reaching us.
+    /// </summary>
+    private static readonly TimeSpan BrowseInterval = TimeSpan.FromSeconds(4);
     /// <summary>A peer is dropped after this long without being seen, like omaclip's three missed browse cycles.</summary>
     private static readonly TimeSpan PeerLifetime = TimeSpan.FromSeconds(20);
 
@@ -186,11 +191,41 @@ public sealed class MdnsDiscovery : IDisposable
         }
     }
 
-    private static void TrySend(Socket socket, byte[] packet, EndPoint target)
+    private void TrySend(Socket socket, byte[] packet, EndPoint target)
     {
-        try { socket.SendTo(packet, target); }
-        catch (SocketException) { }
+        try
+        {
+            socket.SendTo(packet, target);
+            Interlocked.Increment(ref packetsSent);
+        }
+        catch (SocketException ex)
+        {
+            Interlocked.Increment(ref sendErrors);
+            lastSendError = ex.Message;
+        }
         catch (ObjectDisposedException) { }
+    }
+
+    // MARK: Diagnostics
+
+    private long packetsSent, sendErrors, queriesReceived, queriesAnswered, responsesReceived;
+    private volatile string? lastSendError;
+    private volatile string? lastQueryFrom;
+
+    /// <summary>A one-line summary of mDNS traffic, for the Settings status section.</summary>
+    public string Diagnostics
+    {
+        get
+        {
+            string interfaces;
+            lock (gate) interfaces = locals.Count == 0 ? "none" : string.Join(", ", locals.Select(l => l.Address));
+            var text = $"advertising {InstanceLabel} on {interfaces}; sent {Interlocked.Read(ref packetsSent)}, " +
+                       $"answered {Interlocked.Read(ref queriesAnswered)} of {Interlocked.Read(ref queriesReceived)} lookups" +
+                       (lastQueryFrom is { } from ? $" (last from {from})" : "") +
+                       $", heard {Interlocked.Read(ref responsesReceived)} replies";
+            if (Interlocked.Read(ref sendErrors) is > 0 and var errors) text += $"; {errors} send errors, last: {lastSendError}";
+            return text;
+        }
     }
 
     private List<DnsRecord> ServiceRecords(IEnumerable<IPAddress> addresses, uint ttl, bool flush)
@@ -230,7 +265,7 @@ public sealed class MdnsDiscovery : IDisposable
             while (!cancellation.IsCancellationRequested)
             {
                 if (cycle % 6 == 5) RefreshInterfaces();
-                if (cycle == 1 || cycle % 12 == 11) Announce(Ttl);
+                if (cycle > 0) Announce(Ttl);
                 var query = new DnsMessage();
                 query.Questions.Add(new DnsQuestion(ServiceType, DnsType.Ptr));
                 SendMulticast(querySocket, query, null);
@@ -254,7 +289,11 @@ public sealed class MdnsDiscovery : IDisposable
                 var result = await socket.ReceiveMessageFromAsync(buffer, SocketFlags.None, from, cancellation).ConfigureAwait(false);
                 var message = DnsMessage.TryParse(buffer.AsSpan(0, result.ReceivedBytes));
                 if (message is null || result.RemoteEndPoint is not IPEndPoint sender) continue;
-                if (message.IsResponse) HandleResponse(message);
+                if (message.IsResponse)
+                {
+                    Interlocked.Increment(ref responsesReceived);
+                    HandleResponse(message);
+                }
                 else if (isMulticast) HandleQuery(message, sender, result.PacketInformation.Interface);
             }
             catch (OperationCanceledException) { return; }
@@ -271,6 +310,10 @@ public sealed class MdnsDiscovery : IDisposable
 
     private void HandleQuery(DnsMessage query, IPEndPoint sender, int interfaceIndex)
     {
+        if (query.Questions.Count == 0) return;
+        // Our own browse queries loop back to us; don't answer or count them.
+        if (querySocket?.LocalEndPoint is IPEndPoint own && sender.Port == own.Port && IsLocal(sender.Address)) return;
+        Interlocked.Increment(ref queriesReceived);
         List<IPAddress> addresses;
         lock (gate)
         {
@@ -314,6 +357,8 @@ public sealed class MdnsDiscovery : IDisposable
             wantsUnicast |= question.UnicastResponse;
         }
         if (answers.Count == 0) return;
+        Interlocked.Increment(ref queriesAnswered);
+        lastQueryFrom = sender.Address.ToString();
         // An additional record that is also an answer is redundant.
         additionals.RemoveAll(a => answers.Contains(a));
 
@@ -339,6 +384,12 @@ public sealed class MdnsDiscovery : IDisposable
         List<LocalAddress> on;
         lock (gate) on = locals.Where(l => addresses.Contains(l.Address)).ToList();
         SendMulticast(multicastSocket, multicast, on.FirstOrDefault()?.Address);
+    }
+
+    private bool IsLocal(IPAddress address)
+    {
+        if (IPAddress.IsLoopback(address)) return true;
+        lock (gate) return locals.Any(l => l.Address.Equals(address));
     }
 
     private static bool SameSubnet(LocalAddress local, IPAddress other)

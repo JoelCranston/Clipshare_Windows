@@ -53,6 +53,9 @@ internal sealed class AppModel : IDisposable
     public int? ListeningPort { get; private set; }
     public string? KeyFingerprint { get; private set; }
 
+    /// <summary>mDNS traffic counters, or null when discovery is off (manual peers).</summary>
+    public string? DiscoveryDiagnostics => discovery?.Diagnostics;
+
     /// <summary>Raised on the UI thread whenever anything shown in the UI changes.</summary>
     public event Action? Changed;
 

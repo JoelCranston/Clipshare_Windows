@@ -85,10 +85,13 @@ public class MdnsTests
         stranger.Start(3333);
         var completed = await Task.WhenAny(found.Task, Task.Delay(TimeSpan.FromSeconds(15)));
         Assert.True(completed == found.Task, "test-a did not discover test-b; saw: " + string.Join(", ", latest));
-        var peer = found.Task.Result.Single(p => p.Name == "test-b-2222");
+        var peers = await found.Task;
+        var peer = peers.Single(p => p.Name == "test-b-2222");
         Assert.Equal(2222, peer.Port);
         Assert.Equal("test-b", peer.DisplayName);
-        Assert.DoesNotContain(found.Task.Result, p => p.Name.StartsWith("test-c", StringComparison.Ordinal));
-        Assert.DoesNotContain(found.Task.Result, p => p.Name.StartsWith("test-a", StringComparison.Ordinal));
+        Assert.DoesNotContain(peers, p => p.Name.StartsWith("test-c", StringComparison.Ordinal));
+        Assert.DoesNotContain(peers, p => p.Name.StartsWith("test-a", StringComparison.Ordinal));
+        Assert.Contains("advertising test-b-2222", b.Diagnostics);
+        Assert.DoesNotContain("send errors", b.Diagnostics);
     }
 }

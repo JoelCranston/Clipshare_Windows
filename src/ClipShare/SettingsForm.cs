@@ -20,6 +20,8 @@ internal sealed class SettingsForm : Form
     private readonly Font headerFont = new("Segoe UI Semibold", 10.5F);
     private readonly Font noteFont = new("Segoe UI", 8.25F);
     private bool loading;
+    private TextBox? discoveryLine;
+    private readonly System.Windows.Forms.Timer diagnosticsTimer = new() { Interval = 2000 };
 
     public SettingsForm(AppModel model)
     {
@@ -150,6 +152,11 @@ internal sealed class SettingsForm : Form
         HotKeyCenter.Shared.Changed += OnModelChanged;
         Load += (_, _) => LoadValues();
         Activated += (_, _) => RefreshStatus();
+        diagnosticsTimer.Tick += (_, _) =>
+        {
+            if (discoveryLine is { IsDisposed: false } line && model.DiscoveryDiagnostics is { } text && line.Text != text) line.Text = text;
+        };
+        diagnosticsTimer.Start();
     }
 
     // MARK: Layout helpers
@@ -214,7 +221,7 @@ internal sealed class SettingsForm : Form
         status.SuspendLayout();
         foreach (Control control in status.Controls) control.Dispose();
         status.Controls.Clear();
-        void Line(string caption, string value, Color? color = null)
+        TextBox Line(string caption, string value, Color? color = null)
         {
             status.Controls.Add(new Label { Text = caption, AutoSize = true, Margin = new Padding(0, 4, 8, 4) });
             var text = new TextBox
@@ -224,6 +231,7 @@ internal sealed class SettingsForm : Form
             };
             if (color is { } c) text.ForeColor = c;
             status.Controls.Add(text);
+            return text;
         }
         Line("Status", model.NetworkStatus);
         if (model.ListeningPort is { } listening)
@@ -232,6 +240,7 @@ internal sealed class SettingsForm : Form
             Line("This PC", string.Join("   ", addresses));
         }
         if (model.KeyFingerprint is { } fingerprint) Line("Key fingerprint", fingerprint);
+        discoveryLine = model.DiscoveryDiagnostics is { } diagnostics ? Line("Discovery", diagnostics) : null;
         foreach (var peer in model.PeerStatuses)
         {
             var address = $"{peer.Peer.Host}:{peer.Peer.Port}";
@@ -284,6 +293,7 @@ internal sealed class SettingsForm : Form
             model.Changed -= OnModelChanged;
             Preferences.Changed -= OnModelChanged;
             HotKeyCenter.Shared.Changed -= OnModelChanged;
+            diagnosticsTimer.Dispose();
             headerFont.Dispose();
             noteFont.Dispose();
         }
