@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The Windows tray app. Builds on any OS (EnableWindowsTargeting) but runs only on Windows. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <UseWindowsForms>true</UseWindowsForms>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ApplicationVisualStyles>true</ApplicationVisualStyles>
+    <ApplicationIcon>../../assets/ClipShare.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AssemblyName>ClipShare</AssemblyName>
+    <Product>ClipShare</Product>
+    <Description>Share your clipboard between Windows and Linux (omaclip).</Description>
+    <Copyright>Copyright (c) 2026 Joel Cranston</Copyright>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="../../assets/ClipShare.ico" LogicalName="ClipShare.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../OmaclipCore/OmaclipCore.csproj" />
+  </ItemGroup>
+</Project>

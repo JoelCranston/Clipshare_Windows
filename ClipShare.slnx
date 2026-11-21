@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ClipShare/ClipShare.csproj" />
+    <Project Path="src/OmaclipCore/OmaclipCore.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/OmaclipCore.Tests/OmaclipCore.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tests/interop/">
+    <Project Path="tests/interop/InteropCli/InteropCli.csproj" />
+  </Folder>
+</Solution>
