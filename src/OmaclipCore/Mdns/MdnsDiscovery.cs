@@ -326,12 +326,19 @@ public sealed class MdnsDiscovery : IDisposable
         {
             lock (sendGate) TrySend(multicastSocket!, response.Encode(), sender);
         }
-        if (!legacy)
+
+        // Always answer by multicast as well. omaclip asks from an ephemeral port, so the reply above
+        // goes to that port by unicast, and a Linux firewall such as Omarchy's ufw drops it (it doesn't
+        // match the outgoing multicast query). omaclip also listens on the mDNS group, which gets through.
+        var multicast = legacy ? new DnsMessage { IsResponse = true } : response;
+        if (legacy)
         {
-            List<LocalAddress> on;
-            lock (gate) on = locals.Where(l => addresses.Contains(l.Address)).ToList();
-            SendMulticast(multicastSocket, response, on.FirstOrDefault()?.Address);
+            multicast.Answers.AddRange(response.Answers);
+            multicast.Additionals.AddRange(response.Additionals);
         }
+        List<LocalAddress> on;
+        lock (gate) on = locals.Where(l => addresses.Contains(l.Address)).ToList();
+        SendMulticast(multicastSocket, multicast, on.FirstOrDefault()?.Address);
     }
 
     private static bool SameSubnet(LocalAddress local, IPAddress other)

@@ -51,6 +51,23 @@ if timeout 15 "$WORK/omaclip-peer" fetch "wrong passphrase" "127.0.0.1:$PORT" >/
 OUT=$("$WORK/omaclip-peer" discover "$PASS" 8)
 expect "$OUT" "peer windows-interop-$PORT"
 grep -q "omaclip-discover-1@" "$WORK/net.log" || { cat "$WORK/net.log"; fail "Windows client did not discover omaclip"; }
+
+# A stateful Linux firewall (Omarchy enables ufw) drops unicast mDNS replies to omaclip's query port,
+# so omaclip must still find us through multicast answers alone. Needs root for iptables.
+IPT=()
+if [ "$(id -u)" = 0 ] && command -v iptables >/dev/null; then IPT=(iptables)
+elif sudo -n iptables -L >/dev/null 2>&1; then IPT=(sudo -n iptables); fi
+if [ ${#IPT[@]} -gt 0 ]; then
+  echo "== ...again behind a firewall that drops unicast mDNS replies"
+  RULE=(INPUT -p udp --sport 5353 ! -d 224.0.0.251 -j DROP)
+  "${IPT[@]}" -I "${RULE[@]}"
+  sleep 12 # let the start-up announcements pass, so only query answers count
+  OUT=$("$WORK/omaclip-peer" discover "$PASS" 8)
+  "${IPT[@]}" -D "${RULE[@]}"
+  expect "$OUT" "peer windows-interop-$PORT"
+else
+  echo "(skipping the firewall check: needs root for iptables)"
+fi
 exec 3>&-
 
 echo "All interop checks passed against omaclip $OMACLIP_REF."
