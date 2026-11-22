@@ -50,14 +50,14 @@ The defaults sit next to Windows' own clipboard history (Win+V), which ClipShare
 ## Install
 
 Download the latest `ClipShare-<version>-win-x64.exe` (or `-win-arm64.exe` for ARM PCs) from
-[Releases](https://github.com/JoelCranston/Omaclip_windows/releases), and put it somewhere it can
+[Releases](https://github.com/JoelCranston/Clipshare_Windows/releases), and put it somewhere it can
 stay, such as `%LOCALAPPDATA%\Programs\ClipShare\ClipShare.exe`, before turning on Launch at login.
 Every CI run also builds one (the `ClipShare-win-x64` and `ClipShare-win-arm64` artifacts on the
 run's summary page). Or build it yourself in PowerShell:
 
 ```powershell
-git clone https://github.com/JoelCranston/Omaclip_windows.git
-cd Omaclip_windows
+git clone https://github.com/JoelCranston/Clipshare_Windows.git
+cd Clipshare_Windows
 ./scripts/publish.ps1 -Install   # builds, copies to %LOCALAPPDATA%\Programs\ClipShare, adds a Start menu entry, and starts it
 ```
 
