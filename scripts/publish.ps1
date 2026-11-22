@@ -1,18 +1,21 @@
 # Builds ClipShare.exe: a single self-contained file that needs no .NET install.
 #   ./scripts/publish.ps1             -> publish/win-x64/ClipShare.exe
 #   ./scripts/publish.ps1 -Arch arm64 -> publish/win-arm64/ClipShare.exe
+#   ./scripts/publish.ps1 -Version 1.2.3 -> stamps that version into the exe
 #   ./scripts/publish.ps1 -Install    -> also copies it to %LOCALAPPDATA%\Programs\ClipShare and starts it
 param(
     [ValidateSet("x64", "arm64")] [string] $Arch = $(if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "arm64" } else { "x64" }),
+    [string] $Version,
     [switch] $Install
 )
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $out = Join-Path $root "publish/win-$Arch"
+$versionArgs = if ($Version) { @("-p:Version=$Version") } else { @() }
 
 dotnet publish (Join-Path $root "src/ClipShare/ClipShare.csproj") -c Release -r "win-$Arch" --self-contained true `
     -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true `
-    -p:DebugType=None -o $out
+    -p:DebugType=None @versionArgs -o $out
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 Write-Host "Built $out\ClipShare.exe"
 
