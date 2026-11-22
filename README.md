@@ -13,7 +13,7 @@ one shortcut, or the other way around.
 Linux keeps running stock omaclip, unchanged. ClipShare for Windows speaks omaclip's sync protocol
 (v2) directly, so any number of Windows PCs and Linux machines can share one clipboard.
 
-Also on a Mac? [ClipShare for Mac](https://github.com/JoelCranston/Clipboard_Share) is a separate
+Also on a Mac? [ClipShare for Mac](https://github.com/JoelCranston/Clipshare_Mac) is a separate
 app that speaks the same protocol, so it can join the same clipboard too.
 
 ## Features
