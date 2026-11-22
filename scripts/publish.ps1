@@ -11,7 +11,10 @@ param(
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $out = Join-Path $root "publish/win-$Arch"
-$versionArgs = if ($Version) { @("-p:Version=$Version") } else { @() }
+# Build as an array: a one-item array returned from an if expression collapses to a string, which
+# splats character by character.
+[string[]] $versionArgs = @()
+if ($Version) { $versionArgs += "-p:Version=$Version" }
 
 dotnet publish (Join-Path $root "src/ClipShare/ClipShare.csproj") -c Release -r "win-$Arch" --self-contained true `
     -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true `
