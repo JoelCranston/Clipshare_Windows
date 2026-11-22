@@ -49,8 +49,11 @@ The defaults sit next to Windows' own clipboard history (Win+V), which ClipShare
 
 ## Install
 
-Every CI run on GitHub builds a ready-to-run `ClipShare.exe` (look for the `ClipShare-win-x64` or
-`ClipShare-win-arm64` artifact on the run's summary page). Or build it yourself in PowerShell:
+Download the latest `ClipShare-<version>-win-x64.exe` (or `-win-arm64.exe` for ARM PCs) from
+[Releases](https://github.com/JoelCranston/Omaclip_windows/releases), and put it somewhere it can
+stay, such as `%LOCALAPPDATA%\Programs\ClipShare\ClipShare.exe`, before turning on Launch at login.
+Every CI run also builds one (the `ClipShare-win-x64` and `ClipShare-win-arm64` artifacts on the
+run's summary page). Or build it yourself in PowerShell:
 
 ```powershell
 git clone https://github.com/JoelCranston/Omaclip_windows.git
@@ -146,6 +149,13 @@ builds `ClipShare.exe` for x64 and ARM64.
 | `tests/interop` | Interop check against omaclip's Go code |
 | `assets` | App icon: SVG source, 1024px render, and the `.ico` used by the app |
 | `scripts/publish.ps1` | Builds (and optionally installs) the single-file `ClipShare.exe` |
+
+## Releasing
+
+Bump `<Version>` in `src/ClipShare/ClipShare.csproj`, then either run the **Release** workflow
+from the Actions tab with that version, or push a tag such as `v1.0.1`. It runs the tests, builds
+both architectures, smoke-tests the x64 build and publishes a GitHub release with both `.exe`
+files and their SHA-256 sums.
 
 ## Acknowledgements
 

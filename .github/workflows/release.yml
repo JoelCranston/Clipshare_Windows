@@ -1,0 +1,74 @@
+name: Release
+
+# Publishes a GitHub release with ClipShare.exe for x64 and ARM64.
+# Run it from the Actions tab (Release › Run workflow), or push a tag such as v1.0.0.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release, without the leading v (for example 1.0.0)
+        required: true
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+concurrency: release
+
+jobs:
+  release:
+    name: Build and publish release
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Work out the version
+        id: version
+        shell: pwsh
+        run: |
+          $version = if ($env:GITHUB_EVENT_NAME -eq "workflow_dispatch") { "${{ inputs.version }}" } else { $env:GITHUB_REF_NAME.TrimStart("v") }
+          $version = $version.TrimStart("v")
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Version '$version' is not of the form 1.2.3" }
+          "version=$version" >> $env:GITHUB_OUTPUT
+      - name: Unit tests
+        run: dotnet test tests/OmaclipCore.Tests --nologo
+      - name: Publish x64
+        run: ./scripts/publish.ps1 -Arch x64 -Version ${{ steps.version.outputs.version }}
+        shell: pwsh
+      - name: Publish arm64
+        run: ./scripts/publish.ps1 -Arch arm64 -Version ${{ steps.version.outputs.version }}
+        shell: pwsh
+      - name: Smoke test (starts, stays up, logs no errors)
+        shell: pwsh
+        run: |
+          $app = Start-Process publish/win-x64/ClipShare.exe -PassThru
+          Start-Sleep -Seconds 15
+          $app.Refresh()
+          if ($app.HasExited) { throw "ClipShare exited with code $($app.ExitCode)" }
+          $log = Join-Path $env:LOCALAPPDATA "ClipShare\errors.log"
+          if (Test-Path $log) { Get-Content $log; throw "ClipShare logged errors" }
+          Stop-Process -Id $app.Id
+      - name: Create the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          New-Item -ItemType Directory -Force release | Out-Null
+          Copy-Item publish/win-x64/ClipShare.exe "release/ClipShare-$version-win-x64.exe"
+          Copy-Item publish/win-arm64/ClipShare.exe "release/ClipShare-$version-win-arm64.exe"
+          Push-Location release
+          Get-ChildItem *.exe | ForEach-Object { "$((Get-FileHash $_ -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } | Set-Content SHA256SUMS.txt
+          Pop-Location
+          $notes = @"
+          Download **ClipShare-$version-win-x64.exe** for most PCs, or the **arm64** build for ARM PCs
+          (Surface Pro X, Snapdragon laptops). It's a single file that needs no install and no .NET;
+          see the [README](https://github.com/${{ github.repository }}#install) for where to put it
+          and how to set it up. ClipShare isn't code-signed, so SmartScreen may warn the first time:
+          choose **More info › Run anyway**.
+          "@
+          gh release create "v$version" release/* --target $env:GITHUB_SHA --title "ClipShare for Windows $version" --notes $notes --generate-notes
