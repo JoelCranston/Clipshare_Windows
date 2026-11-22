@@ -10,10 +10,11 @@ ClipShare is a small Windows tray app that syncs clipboard history with
 Fedora, openSUSE and others). Copy something on your Linux machine and paste it on Windows with
 one shortcut, or the other way around.
 
-Linux keeps running stock omaclip, unchanged. ClipShare speaks omaclip's sync protocol (v2)
-directly. It is the Windows sibling of the native macOS client,
-[ClipShare for Mac](https://github.com/JoelCranston/Clipboard_Share), and works the same way, so a
-Mac, a Windows PC and any number of Linux machines can all share one clipboard mesh.
+Linux keeps running stock omaclip, unchanged. ClipShare for Windows speaks omaclip's sync protocol
+(v2) directly, so any number of Windows PCs and Linux machines can share one clipboard.
+
+Also on a Mac? [ClipShare for Mac](https://github.com/JoelCranston/Clipboard_Share) is a separate
+app that speaks the same protocol, so it can join the same clipboard too.
 
 ## Features
 
