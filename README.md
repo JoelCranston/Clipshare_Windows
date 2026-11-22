@@ -158,6 +158,13 @@ from the Actions tab with that version, or push a tag such as `v1.0.1`. It runs 
 both architectures, smoke-tests the x64 build and publishes a GitHub release with both `.exe`
 files and their SHA-256 sums.
 
+## Related projects
+
+- [omaclip](https://github.com/rhemvi/omaclip): the Linux clipboard manager whose sync protocol
+  ClipShare speaks.
+- [ClipShare for Mac](https://github.com/JoelCranston/Clipshare_Mac): the native macOS menu bar
+  app, which this Windows client is built to match.
+
 ## Acknowledgements
 
 ClipShare is an independent client for [omaclip](https://github.com/rhemvi/omaclip) by Athanasios
